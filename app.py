@@ -42,7 +42,7 @@ def retrieve(question):
         if score:
             ranked.append((score, page))
     ranked.sort(key=lambda pair: pair[0], reverse=True)
-    return sorted([page for _, page in ranked[:5]], key=lambda page: page['page'])
+    return sorted([page for _, page in ranked[:3]], key=lambda page: page['page'])
 
 def ask(question):
     pages = retrieve(question)
@@ -59,7 +59,7 @@ def ask(question):
     try:
         if _model is None:
             from llama_cpp import Llama
-            _model = Llama(model_path=str(MODEL_PATH), n_ctx=8192, n_threads=max(2, (os.cpu_count() or 4) - 1), verbose=False)
+            _model = Llama(model_path=str(MODEL_PATH), n_ctx=4096, n_batch=16, n_ubatch=16, n_threads=max(2, (os.cpu_count() or 4) - 1), verbose=False)
         output = _model.create_chat_completion(
             messages=[{'role': 'system', 'content': 'Responde solo con los extractos aportados, en español. /no_think'},
                       {'role': 'user', 'content': prompt + '\n/no_think'}],
@@ -76,7 +76,7 @@ if '--self-test' in sys.argv:
     assert (BASE / 'convenio.pdf').exists()
     assert MODEL_PATH.stat().st_size > 1_000_000_000
     from llama_cpp import Llama
-    test_model = Llama(model_path=str(MODEL_PATH), n_ctx=1024, n_threads=2, verbose=False)
+    test_model = Llama(model_path=str(MODEL_PATH), n_ctx=1024, n_batch=16, n_ubatch=16, n_threads=2, verbose=False)
     test = test_model.create_chat_completion(messages=[{'role': 'user', 'content': 'Di OK /no_think'}], max_tokens=16)
     assert test['choices'][0]['message']['content']
     print('SELF-TEST OK')

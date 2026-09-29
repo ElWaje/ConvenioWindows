@@ -48,4 +48,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1.0.0 dist/ConvenioLaboral.exe --title 'Convenio Laboral 1.0.0' --notes 'Aplicación autónoma para Windows 11. Incluye convenio BOE-A-2025-7169 y modelo local. Descarga el EXE y ejecútalo; no requiere clave ni instalaciones.' --latest
+          gh release create v1.0.1 dist/ConvenioLaboral.exe --title 'Convenio Laboral 1.0.1' --notes 'Aplicación autónoma para Windows 11. Incluye convenio BOE-A-2025-7169 y modelo local. Descarga el EXE y ejecútalo; no requiere clave ni instalaciones.' --latest
