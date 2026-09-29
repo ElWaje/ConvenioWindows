@@ -1,0 +1,51 @@
+name: Compilar Convenio Laboral para Windows
+on:
+  push:
+    branches: [main]
+    paths:
+      - app.py
+      - data.js
+      - .github/workflows/build.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows-exe:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar compilador y motor local
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller==6.16.0
+          python -m pip install llama-cpp-python==0.3.16 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+      - name: Descargar convenio y modelo verificados
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://www.boe.es/boe/dias/2025/04/09/pdfs/BOE-A-2025-7169.pdf' -OutFile convenio.pdf
+          $pdfHash = (Get-FileHash convenio.pdf -Algorithm SHA256).Hash.ToLower()
+          if ($pdfHash -ne '2002a1e715df589c34e0261b33053eef1c93b550bfc3eb37eb0bdef192d52dde') { throw "El PDF no coincide con el aportado: $pdfHash" }
+          Invoke-WebRequest -Uri 'https://huggingface.co/lmstudio-community/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf?download=true' -OutFile modelo.gguf
+          $modelHash = (Get-FileHash modelo.gguf -Algorithm SHA256).Hash.ToLower()
+          if ($modelHash -ne 'e0801cbda7e2f3fd00bea4d73b53b422b14b13aa130e778f6414b6b641920b7e') { throw "El modelo no coincide: $modelHash" }
+      - name: Compilar un solo ejecutable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name ConvenioLaboral --collect-all llama_cpp --add-data 'data.js;.' --add-data 'convenio.pdf;.' --add-data 'modelo.gguf;.' app.py
+      - name: Comprobar ejecutable en Windows
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath 'dist/ConvenioLaboral.exe' -ArgumentList '--self-test' -NoNewWindow -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "La prueba del EXE falló: $($process.ExitCode)" }
+          if ((Get-Item dist/ConvenioLaboral.exe).Length -lt 1000000000) { throw 'El EXE no contiene el modelo' }
+      - name: Publicar ejecutable
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.0.0 dist/ConvenioLaboral.exe --title 'Convenio Laboral 1.0.0' --notes 'Aplicación autónoma para Windows 11. Incluye convenio BOE-A-2025-7169 y modelo local. Descarga el EXE y ejecútalo; no requiere clave ni instalaciones.' --latest
